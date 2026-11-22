@@ -4,4 +4,4 @@
   tasks:
     - name: Saludar
       ansible.builtin.debug:
-        msg: "Hola desde mi laboratorio"
+        msg: "Hola desde mi laboratorio 2"
