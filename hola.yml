@@ -1,0 +1,7 @@
+- name: Mi primer playbook
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Saludar
+      ansible.builtin.debug:
+        msg: "Hola desde mi laboratorio"
