@@ -1,0 +1,26 @@
+- name: Practica 1 - variables y facts
+  hosts: localhost
+  gather_facts: true
+  vars:
+    entorno: lab
+    paquetes:
+      - nginx
+      - git
+  tasks:
+    - name: Mostrar entorno
+      ansible.builtin.debug:
+        msg: "Estoy en el entorno {{ entorno }}"
+
+    - name: Mostrar sistema operativo
+      ansible.builtin.debug:
+        msg: "El host usa {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Recorrer una lista
+      ansible.builtin.debug:
+        msg: "Se instalaría {{ item }}"
+      loop: "{{ paquetes }}"
+
+    - name: Condicional
+      ansible.builtin.debug:
+        msg: "Esta tarea solo corre en el laboratorio"
+      when: entorno == "lab"
