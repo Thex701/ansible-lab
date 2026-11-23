@@ -100,8 +100,6 @@
 
         - name: Calcular archivos de la carpeta origen que faltaron en el backup
           ansible.builtin.set_fact:
-                    - name: Calcular archivos de la carpeta origen que faltaron en el backup
-          ansible.builtin.set_fact:
             archivos_faltantes: >-
               {{
                 (archivos_origen.files | map(attribute='path') | map('basename') | list)
