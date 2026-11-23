@@ -23,12 +23,12 @@
             state: directory
             mode: "0755"
 
-        #- name: Crear los 3 archivos con contenido inicial
-        #  ansible.builtin.copy:
-        #    dest: "{{ carpeta_objetivo }}/{{ item.nombre }}"
-        #    content: "{{ item.contenido }}"
-        #    mode: "0644"
-         # loop: "{{ archivos_a_crear }}"
+        - name: Crear los 3 archivos con contenido inicial
+          ansible.builtin.copy:
+            dest: "{{ carpeta_objetivo }}/{{ item.nombre }}"
+            content: "{{ item.contenido }}"
+            mode: "0644"
+          loop: "{{ archivos_a_crear }}"
 
     - name: Comprobar si existe /tmp/backup
       ansible.builtin.stat:
