@@ -1,0 +1,16 @@
+---
+carpeta_objetivo: /tmp/origen
+carpeta_backup: /tmp/backup
+archivos_a_crear:
+  - nombre: a.txt
+    contenido: |
+      app_name: mi_aplicacion
+      debug: false
+  - nombre: b.txt
+    contenido: |
+      app_name: mi_aplicacion
+      debug: false
+  - nombre: c.txt
+    contenido: |
+      app_name: mi_aplicacion
+      debug: false

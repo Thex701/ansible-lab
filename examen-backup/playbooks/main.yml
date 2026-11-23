@@ -1,0 +1,130 @@
+---
+- name: Examen backup
+  hosts: all
+  become: true
+
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Comprobar si existe la carpeta
+      ansible.builtin.stat:
+        path: "{{ carpeta_objetivo }}"
+      register: estado_carpeta
+
+    - name: Crear carpeta y archivos si no existe la carpeta
+      when: not estado_carpeta.stat.exists
+      block:
+        - name: Informar que se creará la estructura
+          ansible.builtin.debug:
+            msg: "No existe {{ carpeta_objetivo }}. Creando carpeta y archivos..."
+
+        - name: Crear la carpeta
+          ansible.builtin.file:
+            path: "{{ carpeta_objetivo }}"
+            state: directory
+            mode: "0755"
+            owner: root
+            group: root
+
+        - name: Crear los 3 archivos con contenido inicial
+          ansible.builtin.copy:
+            dest: "{{ carpeta_objetivo }}/{{ item.nombre }}"
+            content: "{{ item.contenido }}"
+            mode: "0644"
+            owner: root
+            group: root
+          loop: "{{ archivos_a_crear }}"
+
+        - name: Comprobar si existe /tmp/backup
+          ansible.builtin.stat:
+            path: "{{ carpeta_backup }}"
+          register: estado_backup
+
+        - name: Crear /tmp/backup si no existe
+          ansible.builtin.file:
+            path: "{{ carpeta_backup }}"
+            state: directory
+            mode: "0755"
+            owner: root
+            group: root
+          when: not estado_backup.stat.exists
+
+        - name: Generar marca de tiempo para el backup
+          ansible.builtin.set_fact:
+            marca_tiempo: "{{ '%Y%m%d_%H%M%S' | strftime }}"
+
+        - name: Crear backup comprimido con fecha y hora en /tmp/backup
+          community.general.archive:
+            path: "{{ carpeta_objetivo }}"
+            dest: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
+            format: gz
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: 1. Verificar si el archivo de backup existe
+          ansible.builtin.stat:
+            path: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
+          register: archivo_backup
+
+        - name: Alerta si el archivo de backup no existe
+          ansible.builtin.debug:
+            msg: "ALERTA: No se creó el archivo {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz."
+          when: not archivo_backup.stat.exists
+
+        - name: 2. Verificaciones si el archivo de backup existe
+          when: archivo_backup.stat.exists
+          block:
+            - name: Listar archivos reales en /tmp/origen/
+              ansible.builtin.find:
+                paths: "{{ carpeta_objetivo }}"
+                file_type: file
+                recurse: true
+              register: archivos_origen
+
+            - name: Listar contenido interno del backup con tar -tzf
+              ansible.builtin.command:
+                cmd: "tar -tzf {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
+              register: contenido_tar
+              changed_when: false
+              failed_when: false
+
+            - name: Detectar si el archivo está vacío o sin contenido útil
+              ansible.builtin.set_fact:
+                backup_vacio: >-
+                  {{
+                    (archivo_backup.stat.size | default(0)) == 0 or
+                    (contenido_tar.rc != 0) or
+                    (contenido_tar.stdout_lines | reject('search', '/$') | list | length == 0)
+                  }}
+
+            - name: Eliminar archivo de backup si está vacío
+              ansible.builtin.file:
+                path: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
+                state: absent
+              when: backup_vacio
+
+            - name: Alerta si el backup estaba vacío y fue eliminado
+              ansible.builtin.debug:
+                msg: "ALERTA: El backup {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz estaba vacío o corrupto y fue eliminado."
+              when: backup_vacio
+
+            - name: Calcular archivos de /tmp/origen/ que faltaron en el backup
+              ansible.builtin.set_fact:
+                archivos_faltantes: >-
+                  {{
+                    (archivos_origen.files | map(attribute='path') | map('regex_replace', '^/', '') | list)
+                    | difference(contenido_tar.stdout_lines | reject('search', '/$') | list)
+                  }}
+              when: not backup_vacio
+
+            - name: Alerta si algún archivo de /tmp/origen/ no se incluyó en el backup
+              ansible.builtin.debug:
+                msg: "ALERTA: No se respaldaron todos los archivos de {{ carpeta_objetivo }} Faltantes: {{ archivos_faltantes }}"
+              when:
+                - not backup_vacio
+                - archivos_faltantes | length > 0
+            - name: Mostrar nombre y tamaño del backup
+              ansible.builtin.debug:
+                msg: "Backup creado: {{ archivo_backup.stat.path | basename }} | Tamaño: {{ archivo_backup.stat.size }} bytes"
+              when: not backup_vacio
