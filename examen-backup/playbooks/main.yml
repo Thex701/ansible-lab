@@ -53,14 +53,9 @@
           ansible.builtin.set_fact:
             marca_tiempo: "{{ '%Y%m%d_%H%M%S' | strftime }}"
 
-        - name: Crear backup comprimido con fecha y hora en /tmp/backup
-          community.general.archive:
-            path: "{{ carpeta_objetivo }}"
-            dest: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
-            format: gz
-            owner: root
-            group: root
-            mode: "0644"
+        - name: Crear backup comrpmido con fecha y hora en /tmp/backup
+          ansible.builtin.command:
+            cmd: "tar -czf {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz -C {{ carpeta_objetivo }} ."
 
         - name: 1. Verificar si el archivo de backup existe
           ansible.builtin.stat:
