@@ -2,6 +2,7 @@
 - name: Examen backup
   hosts: all
   become: true
+  become_method: su
 
   vars_files:
     - vars/main.yml
