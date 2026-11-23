@@ -55,15 +55,15 @@
         path: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
       register: archivo_backup
 
-    - name: Alerta si el archivo de backup no existe
-      ansible.builtin.debug:
-        msg: "ALERTA: No se creó el archivo {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz."
+    - name: Cortar job si el archivo de backup no existe
+      ansible.builtin.fail:
+        msg: "ERROR: No se creó el archivo {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz."
       when: not archivo_backup.stat.exists
 
     - name: 2. Verificaciones si el archivo de backup existe
       when: archivo_backup.stat.exists
       block:
-        - name: Listar archivos reales en /tmp/origen/
+        - name: Listar archivos reales en la carpeta origen
           ansible.builtin.find:
             paths: "{{ carpeta_objetivo }}"
             file_type: file
@@ -86,18 +86,19 @@
                 (contenido_tar.stdout_lines | reject('search', '/$') | list | length == 0)
               }}
 
-        - name: Eliminar archivo de backup si está vacío
-          ansible.builtin.file:
-            path: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
-            state: absent
+        - name: Acciones si el backup está vacío o corrupto
           when: backup_vacio
+          block:
+            - name: Eliminar archivo de backup si está vacío
+              ansible.builtin.file:
+                path: "{{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz"
+                state: absent
 
-        - name: Alerta si el backup estaba vacío y fue eliminado
-          ansible.builtin.debug:
-            msg: "ALERTA: El backup {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz estaba vacío o corrupto y fue eliminado."
-          when: backup_vacio
+            - name: Cortar job porque el backup estaba vacío o corrupto
+              ansible.builtin.fail:
+                msg: "ERROR: El backup {{ carpeta_backup }}/backup_{{ marca_tiempo }}.tar.gz estaba vacío o corrupto y fue eliminado."
 
-        - name: Calcular archivos de /tmp/origen/ que faltaron en el backup
+        - name: Calcular archivos de la carpeta origen que faltaron en el backup
           ansible.builtin.set_fact:
             archivos_faltantes: >-
               {{
@@ -106,9 +107,9 @@
               }}
           when: not backup_vacio
 
-        - name: Alerta si algún archivo de /tmp/origen/ no se incluyó en el backup
-          ansible.builtin.debug:
-            msg: "ALERTA: No se respaldaron todos los archivos de {{ carpeta_objetivo }}. Faltantes: {{ archivos_faltantes }}"
+        - name: Cortar job si algún archivo de la carpeta origen no se incluyó en el backup
+          ansible.builtin.fail:
+            msg: "ERROR: No se respaldaron todos los archivos de {{ carpeta_objetivo }}. Faltantes: {{ archivos_faltantes }}"
           when:
             - not backup_vacio
             - archivos_faltantes | length > 0
