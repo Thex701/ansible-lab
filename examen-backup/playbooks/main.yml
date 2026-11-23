@@ -114,17 +114,4 @@
                 archivos_faltantes: >-
                   {{
                     (archivos_origen.files | map(attribute='path') | map('regex_replace', '^/', '') | list)
-                    | difference(contenido_tar.stdout_lines | reject('search', '/$') | list)
-                  }}
-              when: not backup_vacio
-
-            - name: Alerta si algún archivo de /tmp/origen/ no se incluyó en el backup
-              ansible.builtin.debug:
-                msg: "ALERTA: No se respaldaron todos los archivos de {{ carpeta_objetivo }} Faltantes: {{ archivos_faltantes }}"
-              when:
-                - not backup_vacio
-                - archivos_faltantes | length > 0
-            - name: Mostrar nombre y tamaño del backup
-              ansible.builtin.debug:
-                msg: "Backup creado: {{ archivo_backup.stat.path | basename }} | Tamaño: {{ archivo_backup.stat.size }} bytes"
-              when: not backup_vacio
+                    | difference(contenido_tar.stdout_lines
